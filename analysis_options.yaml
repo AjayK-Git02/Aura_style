@@ -1,0 +1,16 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  errors:
+    # Suppress deprecated member use warnings (withOpacity, etc.)
+    deprecated_member_use: ignore
+    # Treat certain errors as warnings
+    invalid_annotation_target: ignore
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+
+linter:
+  rules:
+    # Additional lint suppressions if needed
+    avoid_print: false
