@@ -61,15 +61,8 @@ class HomeScreen extends ConsumerWidget {
         ],
       ),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF121212), // Deep Charcoal
-              Color(0xFF1E1E1E), // Lighter Charcoal
-            ],
-          ),
+        decoration: BoxDecoration(
+          color: AppTheme.scaffoldBackgroundColor,
         ),
         child: userProfile.when(
           data: (profile) {
@@ -82,7 +75,7 @@ class HomeScreen extends ConsumerWidget {
                   Text(
                     'Hello,',
                     style: AppTheme.headlineMedium.copyWith(
-                      color: Colors.white70,
+                      color: AppTheme.textSecondary,
                       fontWeight: FontWeight.normal,
                     ), 
                   ),
@@ -111,9 +104,8 @@ class HomeScreen extends ConsumerWidget {
                     title: 'My Wardrobe',
                     description: 'Manage your collection',
                     icon: Icons.checkroom,
-                    // Gold/Black Gradient
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF2C2C2C), Color(0xFF1A1A1A)],
+                    gradient: LinearGradient(
+                      colors: [AppTheme.primaryColor.withOpacity(0.15), AppTheme.surfaceColor],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -125,9 +117,8 @@ class HomeScreen extends ConsumerWidget {
                     title: 'Virtual Try-On',
                     description: 'Visualize your look',
                     icon: Icons.face_retouching_natural,
-                    // Platinum/Dark Gradient
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF383838), Color(0xFF252525)],
+                    gradient: LinearGradient(
+                      colors: [AppTheme.secondaryColor.withOpacity(0.2), AppTheme.surfaceColor],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -139,9 +130,8 @@ class HomeScreen extends ConsumerWidget {
                     title: 'Style Quiz',
                     description: 'Discover your essence',
                     icon: Icons.auto_awesome,
-                    // Bronze/Dark Gradient
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF2A2A2A), Color(0xFF1F1F1F)],
+                    gradient: LinearGradient(
+                      colors: [AppTheme.accentColor.withOpacity(0.2), AppTheme.surfaceColor],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -153,7 +143,7 @@ class HomeScreen extends ConsumerWidget {
           },
           loading: () => const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor)),
           error: (error, stack) => Center(
-            child: Text('Error loading profile: $error', style: const TextStyle(color: Colors.white)),
+            child: Text('Error loading profile: $error', style: TextStyle(color: AppTheme.textPrimary)),
           ),
         ),
       ),
@@ -176,7 +166,7 @@ class HomeScreen extends ConsumerWidget {
         decoration: BoxDecoration(
           gradient: gradient,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withOpacity(0.05)),
+          border: Border.all(color: AppTheme.primaryColor.withOpacity(0.15)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.3),
@@ -208,7 +198,7 @@ class HomeScreen extends ConsumerWidget {
                   Text(
                     title,
                     style: GoogleFonts.playfairDisplay(
-                      color: Colors.white,
+                      color: AppTheme.textPrimary,
                       fontSize: 22,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.5,
@@ -218,7 +208,7 @@ class HomeScreen extends ConsumerWidget {
                   Text(
                     description,
                     style: GoogleFonts.lato(
-                      color: Colors.white54,
+                      color: AppTheme.textSecondary,
                       fontSize: 14,
                     ),
                   ),
@@ -227,7 +217,7 @@ class HomeScreen extends ConsumerWidget {
             ),
             Icon(
               Icons.arrow_forward_ios,
-              color: Colors.white.withOpacity(0.2),
+              color: AppTheme.primaryColor.withOpacity(0.4),
               size: 16,
             ),
           ],

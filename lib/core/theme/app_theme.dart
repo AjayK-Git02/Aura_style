@@ -2,23 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  // Color Palette - Midnight Aura (Premium Dark)
-  static const Color primaryColor = Color(0xFFD4AF37); // Champagne Gold
-  static const Color primaryDark = Color(0xFFC5A059);  // Darker Gold
-  static const Color secondaryColor = Color(0xFFE5E5E5); // Platinum/Silver
-  static const Color accentColor = Color(0xFFFFD700);    // Bright Gold
+  // Color Palette - User Custom (Pastel & Fresh)
+  static const Color primaryColor = Color(0xFF92C7CF);   // Soft Cyan/Blue
+  static const Color primaryDark = Color(0xFF7AB0B8);    // Slightly darker version
+  static const Color secondaryColor = Color(0xFFAAD7D9); // Light Blue
+  static const Color accentColor = Color(0xFFE5E1DA);    // Light Beige/Tan
   
   // Backgrounds
-  static const Color scaffoldBackgroundColor = Color(0xFF121212); // Deep Charcoal
-  static const Color surfaceColor = Color(0xFF1E1E1E); // Lighter Charcoal
-  static const Color cardColor = Color(0xFF252525);    // Card Background
+  static const Color scaffoldBackgroundColor = Color(0xFFFBF9F1); // Cream/Off-White
+  static const Color surfaceColor = Color(0xFFFFFFFF);            // White
+  static const Color cardColor = Color(0xFFFFFFFF);               // White for cards
   
   // Text Colors
-  static const Color textPrimary = Color(0xFFFFFFFF);
-  static const Color textSecondary = Color(0xFFB3B3B3);
+  static const Color textPrimary = Color(0xFF1E1E1E);    // Dark Grey for readability
+  static const Color textSecondary = Color(0xFF757575);  // Medium Grey
 
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [primaryColor, Color(0xFFF2D06B)],
+    colors: [primaryColor, secondaryColor],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -58,58 +58,36 @@ class AppTheme {
   static final TextStyle labelLarge = GoogleFonts.lato(
     fontSize: 14,
     fontWeight: FontWeight.bold,
-    color: Colors.black,
+    color: Colors.white,
     letterSpacing: 1.0,
   );
   
-  // Dark Theme (Default)
+  // Light Theme (Default)
   static ThemeData lightTheme = ThemeData(
     useMaterial3: true,
-    brightness: Brightness.dark,
+    brightness: Brightness.light,
     scaffoldBackgroundColor: scaffoldBackgroundColor,
     primaryColor: primaryColor,
-    colorScheme: const ColorScheme.dark(
+    colorScheme: const ColorScheme.light(
       primary: primaryColor,
       secondary: secondaryColor,
       surface: surfaceColor,
       background: scaffoldBackgroundColor,
-      error: Color(0xFFCF6679),
+      error: Color(0xFFD32F2F),
+      onPrimary: Colors.black, // Dark text on light pastel primary
+      onSecondary: Colors.black, // Dark text on light pastel secondary
+      onSurface: textPrimary,
+      onBackground: textPrimary,
     ),
     
     // Typography
     textTheme: TextTheme(
-      headlineLarge: GoogleFonts.playfairDisplay(
-        fontSize: 32,
-        fontWeight: FontWeight.bold,
-        color: textPrimary,
-        letterSpacing: 0.5,
-      ),
-      headlineMedium: GoogleFonts.playfairDisplay(
-        fontSize: 24,
-        fontWeight: FontWeight.w600,
-        color: textPrimary,
-      ),
-      headlineSmall: GoogleFonts.playfairDisplay(
-        fontSize: 20,
-        fontWeight: FontWeight.w600,
-        color: textPrimary,
-      ),
-      bodyLarge: GoogleFonts.lato(
-        fontSize: 16,
-        color: textPrimary,
-        height: 1.5,
-      ),
-      bodyMedium: GoogleFonts.lato(
-        fontSize: 14,
-        color: textSecondary,
-        height: 1.5,
-      ),
-      labelLarge: GoogleFonts.lato(
-        fontSize: 14,
-        fontWeight: FontWeight.bold,
-        color: Colors.black, // For buttons usually
-        letterSpacing: 1.0,
-      ),
+      headlineLarge: headlineLarge,
+      headlineMedium: headlineMedium,
+      headlineSmall: headlineSmall,
+      bodyLarge: bodyLarge,
+      bodyMedium: bodyMedium,
+      labelLarge: labelLarge.copyWith(color: Colors.black), // Ensure button label is black
     ),
 
     // App Bar
@@ -130,18 +108,18 @@ class AppTheme {
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: surfaceColor,
-      hintStyle: GoogleFonts.lato(color: Colors.white38),
+      hintStyle: GoogleFonts.lato(color: Colors.black38),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade300),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade300),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: primaryColor, width: 1.5),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: primaryColor, width: 2),
       ),
       contentPadding: const EdgeInsets.all(16),
     ),
@@ -150,11 +128,12 @@ class AppTheme {
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: primaryColor,
-        foregroundColor: Colors.black,
-        elevation: 0,
+        foregroundColor: Colors.black, // Black text for contrast
+        elevation: 2,
+        shadowColor: primaryColor.withOpacity(0.3),
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
         ),
         textStyle: GoogleFonts.lato(
           fontSize: 16,
@@ -167,10 +146,11 @@ class AppTheme {
     // Cards
     cardTheme: CardThemeData(
       color: cardColor,
-      elevation: 4,
+      elevation: 2,
+      shadowColor: Colors.black.withOpacity(0.05),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.white.withOpacity(0.05), width: 1),
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide.none,
       ),
     ),
     
@@ -178,7 +158,7 @@ class AppTheme {
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
       backgroundColor: surfaceColor,
       selectedItemColor: primaryColor,
-      unselectedItemColor: Colors.white38,
+      unselectedItemColor: Colors.grey,
       type: BottomNavigationBarType.fixed,
       elevation: 8,
     ),
@@ -187,24 +167,16 @@ class AppTheme {
     dialogTheme: DialogThemeData(
       backgroundColor: surfaceColor,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.white.withOpacity(0.1)),
+        borderRadius: BorderRadius.circular(20),
       ),
-      titleTextStyle: GoogleFonts.playfairDisplay(
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-        color: textPrimary,
-      ),
-      contentTextStyle: GoogleFonts.lato(
-        fontSize: 16,
-        color: textSecondary,
-      ),
+      titleTextStyle: headlineSmall,
+      contentTextStyle: bodyLarge,
     ),
 
     // SnackBar
     snackBarTheme: SnackBarThemeData(
-      backgroundColor: surfaceColor,
-      contentTextStyle: GoogleFonts.lato(color: textPrimary),
+      backgroundColor: textPrimary,
+      contentTextStyle: GoogleFonts.lato(color: Colors.white),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
       ),
@@ -216,8 +188,9 @@ class AppTheme {
     bottomSheetTheme: const BottomSheetThemeData(
       backgroundColor: surfaceColor,
       modalBackgroundColor: surfaceColor,
+      elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
     ),
   );
