@@ -1,22 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:aura_style/core/constants/supabase_config.dart';
+import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:aura_style/core/theme/app_theme.dart';
-import 'package:aura_style/core/utils/snackbar_helper.dart';
-import 'package:aura_style/features/auth/application/auth_controller.dart';
 import 'package:aura_style/features/wardrobe/data/wardrobe_repository.dart';
 import 'package:aura_style/features/wardrobe/domain/wardrobe_item.dart';
-import 'package:aura_style/features/tryon/data/tryon_repository.dart';
-import 'package:aura_style/features/tryon/domain/tryon_session.dart';
-
-final tryonRepositoryProvider = Provider<TryonRepository>((ref) {
-  return TryonRepository();
-});
+import 'package:aura_style/features/tryon/data/avatar_generation_service.dart';
+import 'package:aura_style/features/auth/application/auth_controller.dart';
 
 final wardrobeRepositoryProvider = Provider<WardrobeRepository>((ref) {
   return WardrobeRepository();
+});
+
+final avatarServiceProvider = Provider<AvatarGenerationService>((ref) {
+  return AvatarGenerationService();
 });
 
 class VirtualTryonCanvas extends ConsumerStatefulWidget {
@@ -28,374 +25,370 @@ class VirtualTryonCanvas extends ConsumerStatefulWidget {
 }
 
 class _VirtualTryonCanvasState extends ConsumerState<VirtualTryonCanvas> {
-  final List<_DraggableClothingItem> _placedItems = [];
-  bool _isLoading = false;
-  String? _bodyPhotoUrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadBodyPhoto();
-  }
-
-  Future<void> _loadBodyPhoto() async {
-    final profile = await ref.read(currentUserProfileProvider.future);
-    if (profile == null) return;
-    
-    // Check if we need to use a signed URL (if bucket is private)
-    // We construct the path since we know it's always 'userId/body.jpg'
-    final path = '${profile.id}/body.jpg';
-    
-    try {
-      final signedUrl = await Supabase.instance.client
-          .storage
-          .from(SupabaseConfig.userMediaBucket)
-          .createSignedUrl(path, 3600); // 1 hour expiry
-          
-      setState(() {
-        _bodyPhotoUrl = signedUrl;
-      });
-    } catch (e) {
-      // Fallback to the stored URL if signing fails (e.g. if it's already a public URL or different path)
-      setState(() {
-        _bodyPhotoUrl = profile.tryonBodyPhotoUrl;
-      });
-    }
-  }
-
-  void _addItem(WardrobeItem item) {
-    setState(() {
-      _placedItems.add(_DraggableClothingItem(
-        item: item,
-        position: Offset(100, _placedItems.length * 50.0 + 100),
-        scale: 0.5,
-      ));
-    });
-    Navigator.pop(context); // Close bottom sheet
-  }
-
-  void _updateItemPosition(int index, Offset newPosition) {
-    setState(() {
-      _placedItems[index] = _placedItems[index].copyWith(position: newPosition);
-    });
-  }
-
-  void _updateItemScale(int index, double newScale) {
-    setState(() {
-      _placedItems[index] = _placedItems[index].copyWith(scale: newScale);
-    });
-  }
-
-  void _removeItem(int index) {
-    setState(() {
-      _placedItems.removeAt(index);
-    });
-  }
-
-  Future<void> _saveSession() async {
-    if (_placedItems.isEmpty) {
-      SnackbarHelper.showError(
-        context,
-        'Add some items to your outfit first!',
-      );
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      final positionedItems = _placedItems.map((item) {
-        return PositionedItem(
-          itemId: item.item.id,
-          x: item.position.dx,
-          y: item.position.dy,
-          scale: item.scale,
-        );
-      }).toList();
-
-      final repo = ref.read(tryonRepositoryProvider);
-      await repo.saveSession(positionedItems);
-
-      if (mounted) {
-        SnackbarHelper.showSuccess(
-          context,
-          'Outfit saved successfully! 🎉',
-        );
-        setState(() {
-          _placedItems.clear();
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        SnackbarHelper.showError(context, e.toString());
-      }
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
-
-  void _showWardrobeDrawer() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _WardrobeDrawer(onItemSelected: _addItem),
-    );
-  }
+  WardrobeItem? _selectedTop;
+  WardrobeItem? _selectedBottom;
+  WardrobeItem? _selectedAccessory;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Virtual Try-On'),
+        title: const Text('Aura Style'),
+        centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.save),
-            onPressed: _isLoading ? null : _saveSession,
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => context.push('/profile'),
           ),
         ],
       ),
-      body: Stack(
+      body: Row(
         children: [
-          // Background: Body Photo
-          if (_bodyPhotoUrl != null)
-            Positioned.fill(
-              child: CachedNetworkImage(
-                imageUrl: _bodyPhotoUrl!,
-                fit: BoxFit.contain,
-                placeholder: (context, url) => Container(
-                  color: Colors.grey.shade200,
-                  child: const Center(child: CircularProgressIndicator()),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  color: Colors.grey.shade200,
-                  child: const Center(
-                    child: Icon(Icons.person_outline, size: 80),
-                  ),
-                ),
-              ),
-            )
-          else
-            Positioned.fill(
-              child: Container(
-                color: Colors.grey.shade100,
-                child: const Center(
-                  child: Text(
-                    'Upload a body photo in settings\nto use virtual try-on',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 16, color: Colors.black54),
-                  ),
-                ),
+          // Left Sidebar - Wardrobe
+          Container(
+            width: 280,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  AppTheme.primaryColor.withOpacity(0.15),
+                  AppTheme.secondaryColor.withOpacity(0.1),
+                ],
               ),
             ),
-
-          // Draggable Clothing Items
-          ..._placedItems.asMap().entries.map((entry) {
-            final index = entry.key;
-            final item = entry.value;
-
-            return Positioned(
-              left: item.position.dx,
-              top: item.position.dy,
-              child: Draggable(
-                feedback: _buildClothingWidget(item, isDragging: true),
-                childWhenDragging: Container(),
-                onDragEnd: (details) {
-                  _updateItemPosition(index, details.offset);
-                },
-                child: GestureDetector(
-                  onLongPress: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('Item Options'),
-                        content: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            ListTile(
-                              leading: const Icon(Icons.zoom_in),
-                              title: const Text('Make Bigger'),
-                              onTap: () {
-                                _updateItemScale(index, item.scale + 0.1);
-                                Navigator.pop(context);
-                              },
-                            ),
-                            ListTile(
-                              leading: const Icon(Icons.zoom_out),
-                              title: const Text('Make Smaller'),
-                              onTap: () {
-                                _updateItemScale(
-                                  index,
-                                  (item.scale - 0.1).clamp(0.1, 2.0),
-                                );
-                                Navigator.pop(context);
-                              },
-                            ),
-                            ListTile(
-                              leading: const Icon(Icons.delete, color: Colors.red),
-                              title: const Text('Remove'),
-                              onTap: () {
-                                _removeItem(index);
-                                Navigator.pop(context);
-                              },
-                            ),
-                          ],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Text(
+                    'My Wardrobe',
+                    style: AppTheme.headlineSmall.copyWith(
+                      color: AppTheme.textPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: _buildWardrobeList(),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => context.push('/wardrobe/add'),
+                      icon: const Icon(Icons.add),
+                      label: const Text('ADD ITEM'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
                         ),
                       ),
-                    );
-                  },
-                  child: _buildClothingWidget(item),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Right Side - 2D Avatar
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppTheme.scaffoldBackgroundColor,
+                    AppTheme.accentColor.withOpacity(0.1),
+                  ],
                 ),
               ),
-            );
-          }),
-
-          // Loading Overlay
-          if (_isLoading)
-            Container(
-              color: Colors.black.withOpacity(0.5),
-              child: const Center(
-                child: CircularProgressIndicator(color: Colors.white),
+              child: Center(
+                child: Container(
+                  width: 300,
+                  height: 500,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(200),
+                    gradient: RadialGradient(
+                      colors: [
+                        AppTheme.primaryColor.withOpacity(0.2),
+                        AppTheme.secondaryColor.withOpacity(0.1),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.5, 1.0],
+                    ),
+                  ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // 2D Avatar - Use generated avatar or placeholder
+                      _buildAvatarDisplay(),
+                      
+                      // Selected items overlay
+                      if (_selectedTop != null)
+                        Positioned(
+                          top: 80,
+                          child: _buildOverlayItem(_selectedTop!),
+                        ),
+                      if (_selectedBottom != null)
+                        Positioned(
+                          top: 200,
+                          child: _buildOverlayItem(_selectedBottom!),
+                        ),
+                      if (_selectedAccessory != null)
+                        Positioned(
+                          top: 40,
+                          child: _buildOverlayItem(_selectedAccessory!, size: 60),
+                        ),
+                    ],
+                  ),
+                ),
               ),
             ),
+          ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showWardrobeDrawer,
-        icon: const Icon(Icons.checkroom),
-        label: const Text('Add Clothes'),
-        backgroundColor: AppTheme.primaryColor,
       ),
     );
   }
 
-  Widget _buildClothingWidget(_DraggableClothingItem item,
-      {bool isDragging = false}) {
-    return Container(
-      width: 100 * item.scale,
-      height: 100 * item.scale,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          if (!isDragging)
-           BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 4,
+  Widget _buildWardrobeList() {
+    final wardrobeRepo = ref.watch(wardrobeRepositoryProvider);
+
+    return StreamBuilder<List<WardrobeItem>>(
+      stream: wardrobeRepo.getMyItems(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: AppTheme.primaryColor),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Text(
+                'No items yet.\nAdd clothes to your wardrobe!',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 14,
+                ),
+              ),
             ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: CachedNetworkImage(
-          imageUrl: item.item.imageUrl,
-          fit: BoxFit.cover,
+          );
+        }
+
+        final items = snapshot.data!;
+        final tops = items.where((i) => i.category.toLowerCase().contains('top') || 
+                                         i.category.toLowerCase().contains('shirt') ||
+                                         i.category.toLowerCase().contains('blouse')).toList();
+        final bottoms = items.where((i) => i.category.toLowerCase().contains('bottom') || 
+                                            i.category.toLowerCase().contains('pant') ||
+                                            i.category.toLowerCase().contains('skirt') ||
+                                            i.category.toLowerCase().contains('jean')).toList();
+        final accessories = items.where((i) => i.category.toLowerCase().contains('access')).toList();
+
+        return ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          children: [
+            if (tops.isNotEmpty) _buildCategory('TOPS', tops, 'top'),
+            const SizedBox(height: 16),
+            if (bottoms.isNotEmpty) _buildCategory('BOTTOMS', bottoms, 'bottom'),
+            const SizedBox(height: 16),
+            if (accessories.isNotEmpty) _buildCategory('ACCESSORIES', accessories, 'accessory'),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildCategory(String title, List<WardrobeItem> items, String type) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.5,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ...items.map((item) => _buildWardrobeItem(item, type)),
+      ],
+    );
+  }
+
+  Widget _buildWardrobeItem(WardrobeItem item, String type) {
+    final isSelected = (type == 'top' && _selectedTop?.id == item.id) ||
+                       (type == 'bottom' && _selectedBottom?.id == item.id) ||
+                       (type == 'accessory' && _selectedAccessory?.id == item.id);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            setState(() {
+              if (type == 'top') {
+                _selectedTop = isSelected ? null : item;
+              } else if (type == 'bottom') {
+                _selectedBottom = isSelected ? null : item;
+              } else {
+                _selectedAccessory = isSelected ? null : item;
+              }
+            });
+          },
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: isSelected 
+                  ? AppTheme.primaryColor.withOpacity(0.2)
+                  : Colors.white.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isSelected 
+                    ? AppTheme.primaryColor
+                    : Colors.transparent,
+                width: 1.5,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  _getCategoryIcon(item.category),
+                  size: 16,
+                  color: isSelected 
+                      ? AppTheme.primaryColor
+                      : AppTheme.textSecondary,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    item.name ?? 'Unnamed Item',
+                    style: TextStyle(
+                      color: isSelected 
+                          ? AppTheme.primaryColor
+                          : AppTheme.textPrimary,
+                      fontSize: 13,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
-}
 
-class _DraggableClothingItem {
-  final WardrobeItem item;
-  final Offset position;
-  final double scale;
-
-  _DraggableClothingItem({
-    required this.item,
-    required this.position,
-    required this.scale,
-  });
-
-  _DraggableClothingItem copyWith({
-    WardrobeItem? item,
-    Offset? position,
-    double? scale,
-  }) {
-    return _DraggableClothingItem(
-      item: item ?? this.item,
-      position: position ?? this.position,
-      scale: scale ?? this.scale,
-    );
-  }
-}
-
-class _WardrobeDrawer extends ConsumerWidget {
-  final Function(WardrobeItem) onItemSelected;
-
-  const _WardrobeDrawer({required this.onItemSelected});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final wardrobeRepo = ref.watch(wardrobeRepositoryProvider);
-
+  Widget _buildOverlayItem(WardrobeItem item, {double size = 100}) {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.6,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
-        children: [
-          const SizedBox(height: 12),
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              'Virtual Try-On',
-              style: AppTheme.headlineMedium,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: StreamBuilder<List<WardrobeItem>>(
-              stream: wardrobeRepo.getMyItems(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(
-                    child: Text('No items in wardrobe'),
-                  );
-                }
-
-                final items = snapshot.data!;
-
-                return GridView.builder(
-                  padding: const EdgeInsets.all(16),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                  ),
-                  itemCount: items.length,
-                  itemBuilder: (context, index) {
-                    final item = items[index];
-                    return GestureDetector(
-                      onTap: () => onItemSelected(item),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: CachedNetworkImage(
-                          imageUrl: item.imageUrl,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryColor.withOpacity(0.3),
+            blurRadius: 12,
+            spreadRadius: 2,
           ),
         ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: CachedNetworkImage(
+          imageUrl: item.imageUrl,
+          fit: BoxFit.cover,
+          placeholder: (context, url) => Container(
+            color: Colors.grey.shade200,
+          ),
+        ),
+      ),
+    );
+  }
+
+  IconData _getCategoryIcon(String category) {
+    final lower = category.toLowerCase();
+    if (lower.contains('shirt') || lower.contains('top') || lower.contains('blouse')) {
+      return Icons.checkroom;
+    } else if (lower.contains('pant') || lower.contains('jean') || lower.contains('bottom')) {
+      return Icons.shop_two;
+    } else if (lower.contains('dress')) {
+      return Icons.woman;
+    } else if (lower.contains('shoe')) {
+      return Icons.favorite;
+    } else if (lower.contains('access')) {
+      return Icons.watch;
+    }
+    return Icons.shopping_bag_outlined;
+  }
+
+  Widget _buildAvatarDisplay() {
+    final avatarService = ref.read(avatarServiceProvider);
+    final userProfile = ref.watch(currentUserProfileProvider);
+
+    return userProfile.when(
+      data: (profile) {
+        if (profile == null) {
+          return Icon(
+            Icons.person,
+            size: 180,
+            color: AppTheme.primaryColor.withOpacity(0.3),
+          );
+        }
+
+        // Use DiceBear placeholder avatar (free, no API calls needed)
+        final avatarUrl = avatarService.generatePlaceholderAvatar(
+          profile.id,
+          style: 'avataaars', // Fun, customizable style
+        );
+
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(100),
+          child: CachedNetworkImage(
+            imageUrl: avatarUrl,
+            width: 180,
+            height: 180,
+            fit: BoxFit.cover,
+            placeholder: (context, url) => Icon(
+              Icons.person,
+              size: 180,
+              color: AppTheme.primaryColor.withOpacity(0.3),
+            ),
+            errorWidget: (context, url, error) => Icon(
+              Icons.person,
+              size: 180,
+              color: AppTheme.primaryColor.withOpacity(0.3),
+            ),
+          ),
+        );
+      },
+      loading: () => Icon(
+        Icons.person,
+        size: 180,
+        color: AppTheme.primaryColor.withOpacity(0.3),
+      ),
+      error: (_, __) => Icon(
+        Icons.person,
+        size: 180,
+        color: AppTheme.primaryColor.withOpacity(0.3),
       ),
     );
   }
