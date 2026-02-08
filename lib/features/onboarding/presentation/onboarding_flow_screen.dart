@@ -73,6 +73,21 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
   XFile? _bodyPhoto;
 
   @override
+  void initState() {
+    super.initState();
+    // Listen to page changes to update _currentPage
+    _pageController.addListener(() {
+      final page = _pageController.page?.round() ?? 0;
+      if (page != _currentPage) {
+        setState(() {
+          _currentPage = page;
+        });
+        print('📄 Page changed to: $_currentPage');
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _pageController.dispose();
     super.dispose();
@@ -151,7 +166,10 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
   }
 
   Future<void> _handleStep3Complete() async {
+    print('🔵 Step 3 Complete - Starting...');
+    
     if (_bodyPhoto == null) {
+      print('❌ No body photo selected');
       SnackbarHelper.showError(
         context,
         'Please upload a full-body photo',
@@ -159,25 +177,35 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
       return;
     }
 
+    print('✅ Body photo found: ${_bodyPhoto!.path}');
     setState(() => _isLoading = true);
+    
     try {
+      print('🔵 Uploading body photo...');
       final repo = ref.read(onboardingRepositoryProvider);
-      await repo.uploadBodyPhoto(_bodyPhoto!);
+      final photoUrl = await repo.uploadBodyPhoto(_bodyPhoto!);
+      print('✅ Photo uploaded successfully: $photoUrl');
+      
+      print('🔵 Completing onboarding...');
       await repo.completeOnboarding();
+      print('✅ Onboarding completed!');
 
       if (mounted) {
         SnackbarHelper.showSuccess(
           context,
           'Onboarding completed! Welcome to Aura Style 🎉',
         );
+        print('🔵 Navigating to home...');
         context.go('/home');
       }
     } catch (e) {
+      print('❌ ERROR in Step 3 Complete: $e');
       if (mounted) {
-        SnackbarHelper.showError(context, e.toString());
+        SnackbarHelper.showError(context, 'Error: ${e.toString()}');
       }
     } finally {
       setState(() => _isLoading = false);
+      print('🔵 Step 3 Complete - Finished');
     }
   }
 
@@ -248,6 +276,7 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
                     onPressed: _isLoading
                         ? null
                         : () {
+                            print('🟢 BUTTON CLICKED! Page: $_currentPage');
                             if (_currentPage == 0) _handleStep1Continue();
                             else if (_currentPage == 1) _handleStep2Continue();
                             else _handleStep3Complete();
